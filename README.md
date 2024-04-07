@@ -6,12 +6,12 @@
 mavlinkHandler is a controller library for UAVs, compatible with both ArduPilot and DroneKit.
 
 ## Installation
-
 You can install mavlinkHandler using pip:
+```
 pip install mavlinkHandler
+```
 
 ## Usage
-
 ```
 from mavlinkHandler import MAVLinkHandlerDronekit as MAVLinkHandler
 
