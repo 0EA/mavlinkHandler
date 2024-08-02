@@ -73,19 +73,21 @@ class MAVLinkHandlerDronekit:
         return self.radians_to_degrees(self.master.attitude.roll), self.radians_to_degrees(self.master.attitude.pitch), self.radians_to_degrees(self.master.attitude.yaw)
         
 
-    def simple_go_to(self, lat, lon, alt):
+    def simple_go_to(self, lat, lon, alt, block=False, distance_radius=15):
 
         a_location = LocationGlobalRelative(lat, lon, alt)
         self.master.simple_goto(a_location)
         
         print("Going to:",lat,lon,alt)
-        while True:
-            vehicle_lat, vehicle_lon, vehicle_alt = self.get_location()
-            point1 = (vehicle_lat, vehicle_lon)
-            target = (lat, lon)
-            distance = geopy.distance.geodesic(target, point1).meters
-            if distance <= self.DISTANCE_RADIUS:
-                break
+        if block:
+            while True:
+                time.sleep(0.1)
+                vehicle_lat, vehicle_lon, vehicle_alt = self.get_location()
+                point1 = (vehicle_lat, vehicle_lon)
+                target = (lat, lon)
+                distance = geopy.distance.geodesic(target, point1).meters
+                if distance <= distance_radius:
+                    break
 
     def return_master(self):
         return self.master
@@ -139,7 +141,7 @@ class MAVLinkHandlerPymavlink:
         if msg is not None:
             return self.radians_to_degrees(msg.pitch), self.radians_to_degrees(msg.roll), self.radians_to_degrees(msg.yaw)
         
-    def simple_goto(self, lat , lon, alt):
+    def simple_goto(self, lat , lon, alt, block=False, distance_radius=15):
 
         self.master.mav.mission_item_send(
             self.master.target_system, self.master.target_component,
@@ -149,14 +151,14 @@ class MAVLinkHandlerPymavlink:
             2, 0, 0, 0, 0, 0,
             lat, lon, alt
         )
-
-        while True:
-            point1 = self.get_location()
-            target = (lat, lon)
-            distance = geopy.distance.geodesic(target, point1[:2]).meters
-            time.sleep(0.3)
-            if distance <= self.DISTANCE_RADIUS:
-                break
+        if block:
+            while True:
+                time.sleep(0.1)
+                point1 = self.get_location()
+                target = (lat, lon)
+                distance = geopy.distance.geodesic(target, point1[:2]).meters
+                if distance <= distance_radius:
+                    break
 
     def get_location(self):
         self.master.mav.request_data_stream_send(self.master.target_system, self.master.target_component,
