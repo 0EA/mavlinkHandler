@@ -29,11 +29,11 @@ class MAVLinkHandlerDronekit:
     def set_parameter_value(self, parameter_name, value):
         self.master.parameters[parameter_name] = value
 
-    def set_target_attitude(self, roll, pitch, yaw, thrust, roll_rate=0, pitch_rate=0, yaw_rate=0):
+    def set_target_attitude(self, roll, pitch, yaw, thrust, roll_rate=0, pitch_rate=0, yaw_rate=0, throttle_ignore=False):
         msg = self.master.message_factory.set_attitude_target_encode(
             int(1e3 * (time.time() - self.boot_time)),
             self.master._master.target_system, self.master._master.target_component,
-            0,
+            mavutil.mavlink.ATTITUDE_TARGET_TYPEMASK_THROTTLE_IGNORE if throttle_ignore else 0,
             QuaternionBase([math.radians(angle) for angle in (roll, pitch, yaw)]),
             roll_rate, 
             pitch_rate, 
@@ -156,11 +156,11 @@ class MAVLinkHandlerPymavlink:
             1e6 / frequency_hz,
             0, 0, 0, 0, 0)
 
-    def set_target_attitude(self, roll, pitch, yaw, thrust, roll_rate=0, pitch_rate=0, yaw_rate=0):
+    def set_target_attitude(self, roll, pitch, yaw, thrust, roll_rate=0, pitch_rate=0, yaw_rate=0, throttle_ignore=False):
         self.master.mav.set_attitude_target_send(
             int(1e3 * (time.time() - self.boot_time)),
             self.master.target_system, self.master.target_component,
-            0,
+            mavutil.mavlink.ATTITUDE_TARGET_TYPEMASK_THROTTLE_IGNORE if throttle_ignore else 0,
             QuaternionBase([math.radians(angle) for angle in (roll, pitch, yaw)]),
             roll_rate, 
             pitch_rate, 
