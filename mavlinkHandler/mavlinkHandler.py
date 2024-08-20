@@ -4,13 +4,19 @@ import time
 import math
 import geopy.distance
 from dronekit import connect, VehicleMode, LocationGlobalRelative, Command
-
-
+import logging
+import os
 class MAVLinkHandlerDronekit:
     """
     init by: mavlink_handler = MAVLinkHandler(f'127.0.0.1:{port}')
     """
-    def __init__(self, connection_string, _wait_ready=False, refresh_rate=50):
+    def __init__(self, connection_string, _wait_ready=False, refresh_rate=50, logs=False, prod=False):
+        if not logs:
+            logging.getLogger('dronekit').setLevel(logging.CRITICAL)
+        if prod:
+            print('Setting permissions for /dev/ttyACM0')
+            os.system("sudo chmod a+rw /dev/ttyACM0")
+
         self.master = connect(connection_string, wait_ready=_wait_ready, rate=refresh_rate)
         self.boot_time = time.time()
 
@@ -139,7 +145,11 @@ class MAVLinkHandlerDronekit:
 
 
 class MAVLinkHandlerPymavlink:
-    def __init__(self, connection_string, _autoreconnect=False, message_hz=50):
+    def __init__(self, connection_string, _autoreconnect=False, message_hz=50, prod=False):
+        if prod:
+            print('Setting permissions for /dev/ttyACM0')
+            os.system("sudo chmod a+rw /dev/ttyACM0")
+            
         self.master = mavutil.mavlink_connection(connection_string, autoreconnect=_autoreconnect)
         self.master.wait_heartbeat()
         self.boot_time = time.time()
