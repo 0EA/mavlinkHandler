@@ -6,11 +6,14 @@ import geopy.distance
 from dronekit import connect, VehicleMode, LocationGlobalRelative, Command
 import logging
 import os
+
+
+
 class MAVLinkHandlerDronekit:
     """
     init by: mavlink_handler = MAVLinkHandler(f'127.0.0.1:{port}')
     """
-    def __init__(self, connection_string, _wait_ready=False, refresh_rate=50, logs=False, prod=False):
+    def __init__(self, connection_string, _wait_ready=False, refresh_rate=50, logs=False, prod=False, logging=False):
         if not logs:
             logging.getLogger('dronekit').setLevel(logging.CRITICAL)
         if prod:
@@ -19,6 +22,43 @@ class MAVLinkHandlerDronekit:
 
         self.master = connect(connection_string, wait_ready=_wait_ready, rate=refresh_rate)
         self.boot_time = time.time()
+
+        self.logging = logging
+        if self.logging:
+            self.init_logger()
+
+    def init_logger(self):
+        # Customcustom logger in order to log to both console and file
+        self.logger = logging.Logger('mavlinkHandler')
+        # Set the log level
+        self.logger.setLevel(logging.DEBUG)
+        # Create handlers
+        c_handler = logging.StreamHandler()
+        
+        log_file_path = 'mavlink.log'
+        old_logs_dir = "mavlink_logs"
+        
+        if not os.path.exists(old_logs_dir):
+            os.makedirs(old_logs_dir)
+            
+        if os.path.exists(log_file_path):
+            # Generate a unique name for the log file in the old logs directory
+            timestamp = datetime.datetime.now()
+            new_log_file_name = log_file_path
+            new_log_file_path = os.path.join(old_logs_dir, new_log_file_name)
+            # Move the log file to the old logs directory
+            shutil.move(log_file_path, new_log_file_path)
+            
+        f_handler = logging.FileHandler(log_file_path)
+        # Set levels for handlers
+        f_handler.setLevel(logging.DEBUG)
+
+        # Create formatters and add it to handlers
+        f_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        f_handler.setFormatter(f_format)
+
+        # Add handlers to the self.logger
+        self.logger.addHandler(f_handler)
 
     def arm_vehicle(self):
         self.master.armed = True
@@ -46,11 +86,15 @@ class MAVLinkHandlerDronekit:
             yaw_rate, 
             thrust
         )
-        
+        if self.logging:
+            self.logger.info(f'Sending set_attitude_target message with roll: {roll}, pitch: {pitch}, yaw: {yaw}, thrust: {thrust}')
         self.master.send_mavlink(msg)
 
     def get_attitude(self):
+        if self.logging:
+            self.logger.info(f"Got Roll: {self.master.attitude.roll}, Pitch: {self.master.attitude.pitch}, Yaw: {self.master.attitude.yaw}")
         return math.degrees(self.master.attitude.roll), math.degrees(self.master.attitude.pitch), math.degrees(self.master.attitude.yaw)
+    
     
     def get_battery(self):
         """
@@ -58,38 +102,68 @@ class MAVLinkHandlerDronekit:
         Returns:
             tuple: (voltage, level)
         """
-        return self.master.battery.voltage, self.master.battery.level
-    
+        voltage, level = self.master.battery.voltage, self.master.battery.level
+        if self.logging:
+            self.logger.info(f"Got Battery Voltage: {voltage}, Level: {level}")
+        return voltage, level
+
     def get_lidar_distance(self):
-        return self.master.rangefinder.distance
-    
+        distance = self.master.rangefinder.distance
+        if self.logging:
+            self.logger.info(f"Got LiDAR Distance: {distance}")
+        return distance
+
     def get_mode_mapping(self):
-        return self.master._mode_mapping
-    
+        mode_mapping = self.master._mode_mapping
+        if self.logging:
+            self.logger.info(f"Got Mode Mapping: {mode_mapping}")
+        return mode_mapping
+
     def get_parameter_value(self, parameter_name):
-        return self.master.parameters[parameter_name]
-    
+        value = self.master.parameters[parameter_name]
+        if self.logging:
+            self.logger.info(f"Got Parameter '{parameter_name}' Value: {value}")
+        return value
+
     def get_mode(self):
-        return self.master.mode.name
-    
+        mode_name = self.master.mode.name
+        if self.logging:
+            self.logger.info(f"Got Mode: {mode_name}")
+        return mode_name
+
     def get_heading(self):
-        return self.master.heading
-    
+        heading = self.master.heading
+        if self.logging:
+            self.logger.info(f"Got Heading: {heading}")
+        return heading
+
     def get_air_speed(self):
-        return self.master.airspeed
-    
+        airspeed = self.master.airspeed
+        if self.logging:
+            self.logger.info(f"Got Air Speed: {airspeed}")
+        return airspeed
+
     def get_ground_speed(self):
-        return self.master.groundspeed
-    
+        groundspeed = self.master.groundspeed
+        if self.logging:
+            self.logger.info(f"Got Ground Speed: {groundspeed}")
+        return groundspeed
+
     def get_location(self):
-        return self.master.location.global_frame.lat, self.master.location.global_frame.lon, self.master.location.global_frame.alt
+        lat = self.master.location.global_frame.lat
+        lon = self.master.location.global_frame.lon
+        alt = self.master.location.global_frame.alt
+        if self.logging:
+            self.logger.info(f"Got Location: Latitude: {lat}, Longitude: {lon}, Altitude: {alt}")
+        return lat, lon, alt
 
     def simple_go_to(self, lat, lon, alt, block=False, distance_radius=15):
-
         a_location = LocationGlobalRelative(lat, lon, alt)
         self.master.simple_goto(a_location)
-        
-        print("Going to:",lat,lon,alt)
+
+        if self.logging:
+            self.logger.info(f"Simple Go To: Latitude: {lat}, Longitude: {lon}, Altitude: {alt}, Blocking: {block}, Distance Radius: {distance_radius}")
+
         if block:
             while True:
                 time.sleep(0.1)
@@ -97,7 +171,11 @@ class MAVLinkHandlerDronekit:
                 point1 = (vehicle_lat, vehicle_lon)
                 target = (lat, lon)
                 distance = geopy.distance.geodesic(target, point1).meters
+                if self.logging:
+                    self.logger.info(f"Current Location: {vehicle_lat}, {vehicle_lon}, {vehicle_alt}, Distance to Target: {distance} meters")
                 if distance <= distance_radius:
+                    if self.logging:
+                        self.logger.info(f"Arrived at Target Location: {lat}, {lon}, {alt}")
                     break
 
     def clear_mission(self):
@@ -149,7 +227,7 @@ class MAVLinkHandlerPymavlink:
         if prod:
             print('Setting permissions for /dev/ttyACM0')
             os.system("sudo chmod a+rw /dev/ttyACM0")
-            
+
         self.master = mavutil.mavlink_connection(connection_string, autoreconnect=_autoreconnect)
         self.master.wait_heartbeat()
         self.boot_time = time.time()

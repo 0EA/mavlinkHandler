@@ -9,7 +9,7 @@ with open('requirements.txt') as f:
 
 setuptools.setup(
     name="mavlinkHandler",
-    version="0.0.12",
+    version="0.0.13",
     author="Nurullah Eren Acar",
     author_email="n.erenacar13@gmail.com",
     description="A controller library for UAVs, compatible with both ArduPilot and DroneKit",
