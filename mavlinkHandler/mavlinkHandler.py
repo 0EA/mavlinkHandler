@@ -7,6 +7,7 @@ from dronekit import connect, VehicleMode, LocationGlobalRelative, Command
 import logging
 import os
 import shutil
+from datetime import datetime, timezone
 
 
 class MAVLinkHandlerDronekit:
@@ -66,7 +67,7 @@ class MAVLinkHandlerDronekit:
     def disarm_vehicle(self):  
         self.master.armed = False
 
-    def takeoff(self, target_altitude):
+    def takeoff(self):
         self.master.mode = VehicleMode("TAKEOFF")
 
     def set_mode(self, mode_name):
@@ -150,9 +151,9 @@ class MAVLinkHandlerDronekit:
         return groundspeed
 
     def get_location(self):
-        lat = self.master.location.global_frame.lat
-        lon = self.master.location.global_frame.lon
-        alt = self.master.location.global_frame.alt
+        lat = self.master.location.global_relative_frame.lat
+        lon = self.master.location.global_relative_frame.lon
+        alt = self.master.location.global_relative_frame.alt
         if self.do_log:
             self.logger.info(f"Got Location: Latitude: {lat}, Longitude: {lon}, Altitude: {alt}")
         return lat, lon, alt
@@ -218,9 +219,13 @@ class MAVLinkHandlerDronekit:
             cmds.add(command)
 
         self.master.commands.upload()
-        
-    
 
+    def gps_time(self):
+        message = self.master._master.recv_match(type='SYSTEM_TIME', blocking=True).to_dict()
+        utc_time = datetime.fromtimestamp(message["time_unix_usec"] / 1e6, tz=timezone.utc)
+        return utc_time.hour, utc_time.minute, utc_time.second, utc_time.microsecond // 1000
+            
+    
 
 class MAVLinkHandlerPymavlink:
     def __init__(self, connection_string, _autoreconnect=False, message_hz=50, prod=False):
@@ -311,5 +316,6 @@ class MAVLinkHandlerPymavlink:
 if __name__ == '__main__':
     """Test"""
     mavlink_handler = MAVLinkHandlerDronekit('udp:127.0.0.1:14591',_wait_ready=False)
-    
-    mavlink_handler.upload_mission("Wp_Uploader/wp_type8")
+    while True:
+        print(mavlink_handler.gps_time())
+        time.sleep(1)
